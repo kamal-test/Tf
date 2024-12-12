@@ -18,7 +18,6 @@ provider "aws" {
   secret_key = var.aws_secret_key
 }
 
-# Create a VPC
 resource "aws_vpc" "main" {
   cidr_block = "10.0.0.0/16"
   
@@ -27,28 +26,58 @@ resource "aws_vpc" "main" {
   }
 }
 
-# Create a subnet within the VPC
-resource "aws_subnet" "main" {
-  vpc_id     = aws_vpc.main.id
-  cidr_block = "10.0.1.0/24"
-  
+# Internet Gateway
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
   tags = {
-    Name = "Main Subnet"
+    Name = "Main Internet Gateway"
   }
 }
 
-# Create a security group
+# Subnet Configuration
+resource "aws_subnet" "public" {
+  vpc_id     = aws_vpc.main.id
+  cidr_block = "10.0.1.0/24"
+  availability_zone = "us-west-2a"  # Specify an AZ in your chosen region
+
+  tags = {
+    Name = "Public Subnet"
+  }
+}
+
+# Route Table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name = "Public Route Table"
+  }
+}
+
+# Route Table Association
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
+# Security Group
 resource "aws_security_group" "allow_ssh" {
   name        = "allow_ssh"
   description = "Allow SSH inbound traffic"
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "SSH from VPC"
+    description = "SSH from anywhere"
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Be cautious with this in production
+    cidr_blocks = ["0.0.0.0/0"]
   }
 
   egress {
@@ -63,58 +92,27 @@ resource "aws_security_group" "allow_ssh" {
   }
 }
 
-# Create an EC2 instance
-resource "aws_instance" "web" {
-  ami           = "ami-0c55b159cbfafe1f0"  # Amazon Linux 2 AMI (update with latest AMI)
+# EC2 Instance
+resource "aws_instance" "main" {  # Changed from "web" to "main"
+  ami           = "ami-0c55b159cbfafe1f0"  # Amazon Linux 2 AMI (update for your region)
   instance_type = "t2.micro"
-  subnet_id     = aws_subnet.main.id
   
+  subnet_id     = aws_subnet.public.id
   vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+  
+  # Optional: Enable public IP
+  associate_public_ip_address = true
 
-  # Optional: Add a key pair for SSH access
-  key_name = "your-key-pair-name"  # Replace with your existing key pair
-
-  # Optional: Add user data for initial setup
-  user_data = <<-EOF
-              #!/bin/bash
-              yum update -y
-              yum install -y httpd
-              systemctl start httpd
-              systemctl enable httpd
-              EOF
-
-  # Optional: Add tags for better resource management
   tags = {
-    Name        = "WebServer"
-    Environment = "Development"
-    Terraform   = "true"
-  }
-
-  # Optional: Root volume configuration
-  root_block_device {
-    volume_type           = "gp3"
-    volume_size           = 30
-    delete_on_termination = true
+    Name = "MainInstance"
   }
 }
 
-# Optional: Create an Elastic IP
-resource "aws_eip" "web_eip" {
-  instance = aws_instance.web.id
-  vpc      = true
-
-  tags = {
-    Name = "WebServer EIP"
-  }
-}
-
-# Outputs
+# Output the instance details
 output "instance_id" {
-  description = "ID of the EC2 instance"
-  value       = aws_instance.web.id
+  value = aws_instance.main.id
 }
 
-output "instance_public_ip" {
-  description = "Public IP of the EC2 instance"
-  value       = aws_eip.web_eip.public_ip
+output "public_ip" {
+  value = aws_instance.main.public_ip
 }
