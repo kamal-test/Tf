@@ -1,4 +1,5 @@
 # Configure the AWS Provider
+# Configure the AWS Provider
 variable "aws_access_key" {
   description = "AWS access key"
   type        = string
@@ -11,11 +12,19 @@ variable "aws_secret_key" {
   sensitive   = true
 }
 
+variable "aws_session_token" {
+  description = "AWS session token (for temporary credentials)"
+  type        = string
+  sensitive   = true
+  default     = null
+}
+
 # Configure AWS Provider with declared variables
 provider "aws" {
   region     = "us-west-2"
   access_key = var.aws_access_key
   secret_key = var.aws_secret_key
+  token      = var.aws_session_token
 }
 
 data "aws_availability_zones" "available" {
