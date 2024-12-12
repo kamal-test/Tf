@@ -19,7 +19,7 @@ provider "aws" {
 }
 
 resource "aws_s3_bucket" "bucket-create-from-terrakube" {
-  bucket = "bucket-create-from-tofu-controller"
+  bucket = "bucket-create-from-terrakube"
 
   tags = {
     Name        = "akshat-terrakube"
