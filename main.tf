@@ -26,7 +26,3 @@ resource "aws_s3_bucket" "bucket-create-from-terrakube" {
     Environment = "Dev"
   }
 }
-
-provider "aws" {
-  region     = "ap-south-1"
-}
